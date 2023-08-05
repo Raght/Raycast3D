@@ -24,15 +24,12 @@ struct Rect
     float fHeight;
 };
 
+struct Map
+{
+    string tiles;
+    int width, height;
+};
 
-float fHitPointDistance;
-float fDrawDistance;
-olc::vf2d vCameraDirection = { 1.0f, 0.0f };
-olc::vf2d vCameraLeftRayDirection;
-
-olc::vf2d vPlayerPos;
-
-bool bDrawMap = false;
 
 
 class Engine : public olc::PixelGameEngine
@@ -78,6 +75,11 @@ private:
         return PI * eulerAngle / 180.0f;
     }
 
+    float Degrees(float radians)
+    {
+        return radians / PI * 180.0f;
+    }
+
     float AngleBetween(olc::vf2d v1, olc::vf2d v2)
     {
         return acosf((v1.dot(v2)) / (v1.mag() * v2.mag()));
@@ -93,43 +95,79 @@ private:
         return vRotated;
     }
 
-    int iMapWidth = 8;
-    int iMapHeight = 8;
-    float fMapWidth = (float)iMapWidth;
-    float fMapHeight = (float)iMapHeight;
+    int iMapWidth;
+    int iMapHeight;
+    float fMapWidth;
+    float fMapHeight;
 
     float* heightMap;
 
-    string sMap;
-    string sMap1 = "########"
-                   ".......#"
-                   "#...##.#"
-                   "#..##..#"
-                   "#......#"
-                   "#.#.#..#"
-                   "#...#..#"
-                   "########";
+    Map map;
+    Map map1 = { "########"
+                 ".......#"
+                 "#...##.#"
+                 "#..##..#"
+                 "#......#"
+                 "#.#.#..#"
+                 "#...#..#"
+                 "########", 8, 8};
 
-    string sMap2 = "########"
-                   "#......#"
-                   "#......#"
-                   "#......#"
-                   "#......#"
-                   "#......#"
-                   "#......#"
-                   "########";
+    Map map2 = { "################"
+                 "################"
+                 "..............##"
+                 "..............##"
+                 "##......####..##"
+                 "##......####..##"
+                 "##....####....##"
+                 "##....####....##"
+                 "##............##"
+                 "##............##"
+                 "##..##..##....##"
+                 "##..##..##....##"
+                 "##......##....##"
+                 "##......##....##"
+                 "################"
+                 "################", 16, 16 };
+
+    Map map3 = { "########"
+                 "#......#"
+                 "#......#"
+                 "#......#"
+                 "#......#"
+                 "#......#"
+                 "#......#"
+                 "########", 8, 8 };
+
+    Map map4 = { "########"
+                 "#......#"
+                 "#......#"
+                 "#..##..#"
+                 "#..##..#"
+                 "#......#"
+                 "#......#"
+                 "########", 8, 8 };
+
+
     float fWallHeight = 3.6f;
 
     olc::vf2d vMoveDirection = { 0.0f, 0.0f };
-    float fPlayerSpeed = 1.0f;
+    float fPlayerSpeed = 2.0f;
+    float fPlayerSprintSpeed = 2.5f;
 
+    float fHitPointDistance;
+    float fDrawDistance;
+    olc::vf2d vCameraDirection = { 1.0f, 0.0f };
+    olc::vf2d vCameraLeftRayDirection;
 
-    float fNearZ = 40.5f;
+    olc::vf2d vPlayerPos;
+
+    bool bDrawMap = true;
+
+    //float fNearZ = 0.5f;
+    float fNearZ;
 
     float fCameraHeight = 1.8f;
-    float fVFovAngle = 74.0f;
     float fHFovAngle = 90.0f;
-    float fVFovHalf = fVFovAngle / 2.0f;
     float fHFovHalf = fHFovAngle / 2.0f;
     
     float fRotationSpeed = 120.0f;
@@ -154,8 +192,9 @@ private:
         //}
         //else
         //    fAngle = abs(fAngle - fHFovHalf);
-        float fAngle = float(vPixelPos.x) / ScreenWidth() * fHFovAngle - fHFovAngle / 2;
-        olc::vf2d vRayDirection = Rotate(vCameraDirection, fAngle).norm();
+        //float fAngle = float(vPixelPos.x) / ScreenWidth() * fHFovAngle - fHFovAngle / 2;
+        float fAngle = atanf((vPixelPos.x - ScreenWidth() / 2) / fNearZ);
+        olc::vf2d vRayDirection = Rotate(vCameraDirection, Degrees(fAngle)).norm();
 
         bool bHitSuccessful = false;
         float fRayTravelledDistance = 0.0f;
@@ -174,9 +213,9 @@ private:
                 bHitSuccessful = true;
                 break;
             }
-            vTilePos = { int(Cap(vPoint.x, 0.0f, fMapWidth)), int(Cap(vPoint.y, 0.0f, fMapHeight - 1)) };
+            vTilePos = { int(Cap(vPoint.x, 0.0f, fMapWidth - 1)), int(Cap(vPoint.y, 0.0f, fMapHeight - 1)) };
 
-            if (sMap[vTilePos.y * iMapWidth + vTilePos.x] == '#')
+            if (map.tiles[vTilePos.y * iMapWidth + vTilePos.x] == '#')
             {
                 bHitSuccessful = true;
                 break;
@@ -184,7 +223,7 @@ private:
         }
 
         fHitPointDistance = fRayTravelledDistance;
-        fHitPointDistance *= cosf(Radians(fAngle));
+        fHitPointDistance *= cosf(fAngle);
 
         if (OutOfBounds(vPoint))
         {
@@ -213,10 +252,17 @@ private:
 public:
     bool OnUserCreate() override
     {
-        sMap = sMap1;
+        fNearZ = ScreenWidth() / 2 / tanf(Radians(fHFovHalf));
 
-        vPlayerPos = { 4.0f, 4.0f };
-        fDrawDistance = 8.0f;
+        map = map2;
+
+        iMapWidth = map.width;
+        iMapHeight = map.height;
+        fMapWidth = (float)iMapWidth;
+        fMapHeight = (float)iMapHeight;
+
+        vPlayerPos = { 2.0f, 4.0f };
+        fDrawDistance = max(fMapWidth, fMapHeight);
 
         vCameraDirection = vCameraDirection.norm();
 
@@ -248,6 +294,7 @@ public:
         //        heightMap[j * iMapWidth + i] = fWallHeight * 0.75f;
         //    }
         //}
+        heightMap[3 * 8 + 3] = fCameraHeight * 3;
 
         
 
@@ -283,15 +330,20 @@ public:
 
         vPlayerPos = { Cap(vPlayerPos.x, 0.0f, fMapWidth), Cap(vPlayerPos.y, 0.0f, fMapHeight) };
 
-        olc::vf2d vTempPos = vPlayerPos + fPlayerSpeed * olc::vf2d{ float(vMoveDirection.x), float(vMoveDirection.y) } * fElapsedTime;
+        olc::vf2d move = vMoveDirection * fElapsedTime;
+        if (GetKey(olc::SHIFT).bHeld)
+            move *= fPlayerSprintSpeed;
+        else
+            move *= fPlayerSpeed;
+        olc::vf2d vTempPos = vPlayerPos + move;
         olc::vi2d vTilePos = { int(vTempPos.x), int(vTempPos.y) };
-        if (!(sMap[vTilePos.y * iMapWidth + vTilePos.x] == '#'))
+        if (!(map.tiles[vTilePos.y * iMapWidth + vTilePos.x] == '#'))
         {
             vPlayerPos = vTempPos;
         }
 
 
-        vCameraLeftRayDirection = Rotate(vCameraDirection, fHFovHalf);
+        
 
         // Draw floor
         float fLightIntensityBegin = 1.0f;
@@ -330,9 +382,12 @@ public:
 
             float yWorldLower = 0;
             float yWorldHigher = rect.fHeight;
-            
+
             float dyCameraToLower = fCameraHeight - yWorldLower;
             float dyCameraToHigher = yWorldHigher - fCameraHeight;
+
+            //int dyLower = roundf(dyCameraToLower * fNearZ / fHitPointDistance);
+            //int dyHigher = roundf(dyCameraToHigher * fNearZ / fHitPointDistance);
 
             int dyLower = roundf(dyCameraToLower * fNearZ / fHitPointDistance);
             int dyHigher = roundf(dyCameraToHigher * fNearZ / fHitPointDistance);
@@ -361,15 +416,14 @@ public:
             // Draw map
             for (int y = 0; y < iMapHeight; y++)
                 for (int x = 0; x < iMapWidth; x++)
-                    DrawChar(olc::vi2d{ x * 8, y * 8 }, sMap[y * iMapWidth + x], olc::RED, 1U);
+                    DrawChar(olc::vi2d{ x * 8, y * 8 }, map.tiles[y * iMapWidth + x], olc::RED, 1U);
         
             // Draw Player position
             FillCircle(olc::vi2d{ int(vPlayerPos.x * 8) , int(vPlayerPos.y * 8) }, 2, olc::CYAN);
 
-
             olc::vf2d vStraightSightRay = vCameraDirection * fDrawDistance;
-            olc::vf2d vLeftRay = vCameraLeftRayDirection * fDrawDistance;
-            olc::vf2d vRightRay = Rotate(vCameraLeftRayDirection, -fHFovAngle) * fDrawDistance;
+            olc::vf2d vLeftRay = Rotate(vStraightSightRay, fHFovHalf);
+            olc::vf2d vRightRay = Rotate(vStraightSightRay, -fHFovHalf);
 
             // Draw viewing frustrum on the map
             DrawLine(olc::vi2d{ int(vPlayerPos.x * 8), int(vPlayerPos.y * 8) },
@@ -389,9 +443,14 @@ public:
 
 int main()
 {
-    bDrawMap = true;
     Engine engine;
-    if (engine.Construct(512, 240, 3, 3))
+    olc::GraphicsMode graphics_mode;
+    //graphics_mode = { 1920, 500, 1, 1 };
+    //graphics_mode = { 1536, 720, 1, 1 };
+    //graphics_mode = { 512, 240, 3, 3 };
+    graphics_mode = { 420, 240, 3, 3 };
+    //graphics_mode = { 1600, 900, 1, 1 };
+    if (engine.Construct(graphics_mode))
         engine.Start();
     //if (engine.Construct(120, 40, 8, 16))
         //engine.Start();
