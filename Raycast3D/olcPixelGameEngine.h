@@ -219,6 +219,7 @@ int main()
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <ctime>
 
 // O------------------------------------------------------------------------------O
 // | COMPILER CONFIGURATION ODDITIES                                              |
@@ -806,6 +807,12 @@ namespace olc
 		// Clears the rendering back buffer
 		void ClearBuffer(Pixel p, bool bDepth = true);
 
+	public:
+		void LockFramerate();
+		void LockFramerate(uint32_t frames_per_second);
+		void UnlockFramerate();
+		uint32_t GetLockedFramerate() const;
+
 
 	public: // Branding
 		std::string sAppName;
@@ -862,6 +869,10 @@ namespace olc
 		// If anything sets this flag to false, the engine
 		// "should" shut down gracefully
 		static std::atomic<bool> bAtomActive;
+
+		// Frame rate lock
+		bool bLockFramerate = false;
+		uint32_t iLockedFramerate = 0;
 
 	public:
 		// "Break In" Functions
@@ -2481,6 +2492,29 @@ namespace olc
 		if (fBlendFactor < 0.0f) fBlendFactor = 0.0f;
 		if (fBlendFactor > 1.0f) fBlendFactor = 1.0f;
 	}
+	
+	// Functions that lock and unlock framerate
+
+	void PixelGameEngine::LockFramerate()
+	{
+		bLockFramerate = true;
+	}
+
+	void PixelGameEngine::LockFramerate(uint32_t frames_per_second)
+	{
+		bLockFramerate = true;
+		iLockedFramerate = frames_per_second;
+	}
+
+	void PixelGameEngine::UnlockFramerate()
+	{
+		bLockFramerate = false;
+	}
+
+	uint32_t PixelGameEngine::GetLockedFramerate() const
+	{
+		return iLockedFramerate;
+	}
 
 	// User must override these functions as required. I have not made
 	// them abstract because I do need a default behaviour to occur if
@@ -2588,7 +2622,10 @@ namespace olc
 		while (bAtomActive)
 		{
 			// Run as fast as possible
-			while (bAtomActive) { olc_CoreUpdate(); }
+			while (bAtomActive)
+			{
+				olc_CoreUpdate();
+			}
 
 			// Allow the user to free resources if they have overrided the destroy function
 			if (!OnUserDestroy())
@@ -2625,11 +2662,40 @@ namespace olc
 		// Handle Timing
 		m_tp2 = std::chrono::system_clock::now();
 		std::chrono::duration<float> elapsedTime = m_tp2 - m_tp1;
+		auto time_point = m_tp2;
 		m_tp1 = m_tp2;
 
 		// Our time per frame coefficient
 		float fElapsedTime = elapsedTime.count();
 		fLastElapsed = fElapsedTime;
+
+		//if (bLockFramerate)
+		//{
+		//	float fSecondsPerFrame = 1.0f / iLockedFramerate;
+		//	float fMicrosecondsUntilNextUpdate = (fSecondsPerFrame - fLastElapsed) * 1000000;
+		//	float fMillisecondsUntilNextUpdate = (fSecondsPerFrame - fLastElapsed) * 1000;
+		//	//std::cout << fLastElapsed * 1000 << ' ' << fMillisecondsUntilNextUpdate << ' ' << fLastElapsed * 1000 + fMillisecondsUntilNextUpdate << '\n';
+		//	//std::this_thread::sleep_for(std::chrono::microseconds(std::max(0ll, (long long)fMicrosecondsUntilNextUpdate)));
+		//	//std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0ll, (long long)fMillisecondsUntilNextUpdate)));
+		//	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<float>(fSecondsPerFrame - fLastElapsed));
+		//	auto time_wake_up = time_point + duration;
+		//	//std::this_thread::sleep_until(time_wake_up);
+		//	//Sleep((int)roundf(fMillisecondsUntilNextUpdate));
+		//
+		//	//struct timespec sleep_time;
+		//	//sleep_time.tv_sec = 0;
+		//	//sleep_time.tv_nsec = (fSecondsPerFrame - fLastElapsed) * 1000000000ll;
+		//
+		//
+		//	m_tp2 = std::chrono::system_clock::now();
+		//	elapsedTime += m_tp2 - time_point;
+		//	m_tp1 = m_tp2;
+		//
+		//	// Our time per frame coefficient
+		//	fElapsedTime = elapsedTime.count();
+		//	fLastElapsed = fElapsedTime;
+		//	//std::cout << fLastElapsed * 1000 << '\n';
+		//}
 
 		// Some platforms will need to check for events
 		platform->HandleSystemEvent();

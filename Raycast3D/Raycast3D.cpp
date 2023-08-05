@@ -3,6 +3,8 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+#include <Windows.h>
+
 using namespace std;
 
 const double const PI = 3.141592653589793238462643383279;
@@ -252,6 +254,9 @@ private:
 public:
     bool OnUserCreate() override
     {
+        //LockFramerate(240);
+        
+
         fNearZ = ScreenWidth() / 2 / tanf(Radians(fHFovHalf));
 
         map = map2;
@@ -310,6 +315,11 @@ public:
 
     bool OnUserUpdate(float fElapsedTime) override
     {
+        //float fSecondsPerFrame = 1.0f / GetLockedFramerate();
+        //float fMicrosecondsUntilNextUpdate = (fSecondsPerFrame - fElapsedTime) * 1000000;
+        //float fMillisecondsUntilNextUpdate = (fSecondsPerFrame - fElapsedTime) * 1000;
+        //Sleep(max(0, (int)fMillisecondsUntilNextUpdate));
+
         Clear(olc::BLACK);
 
         if (GetKey(olc::LEFT).bHeld)
